@@ -493,6 +493,39 @@ float rnnoise_process_frame(DenoiseState *st, float *out, const float *in) {
   return vad_prob;
 }
 
+int pre_process_frame(DenoiseState *st, const float *in, kiss_fft_cpx *X, kiss_fft_cpx *P,
+                      float *Ex, float *Ep, float *Exp, float *features) {
+  float x[FRAME_SIZE];
+  int silence;
+  static const float a_hp[2] = {-1.99599, 0.99600};
+  static const float b_hp[2] = {-2, 1};
+
+  biquad(x, st->mem_hp_x, in, b_hp, a_hp, FRAME_SIZE);
+  silence = compute_frame_features(st, X, P, Ex, Ep, Exp, features, x);
+
+  return silence;
+}
+
+void post_process_frame(DenoiseState *st, float *gains, kiss_fft_cpx *X, kiss_fft_cpx *P,
+                        float *Ex, float *Ep, float *Exp, float *out) {
+  float gf[FREQ_SIZE] = {1};
+
+  pitch_filter(X, P, Ex, Ep, Exp, gains);
+  for (int i=0; i < NB_BANDS; i++) {
+    float alpha = .6f;
+    gains[i] = MAX16(gains[i], alpha*st->lastg[i]);
+    st->lastg[i] = gains[i];
+  }
+  interp_band_gain(gf, gains);
+#if 1
+  for (int i=0; i < FREQ_SIZE; i++) {
+    X[i].r *= gf[i];
+    X[i].i *= gf[i];
+  }
+#endif
+  frame_synthesis(st, out, X);
+}
+
 #if TRAINING
 
 static float uni_rand() {

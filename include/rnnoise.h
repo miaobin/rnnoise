@@ -29,6 +29,7 @@
 #define RNNOISE_H 1
 
 #include <stdio.h>
+#include "../src/kiss_fft.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -92,6 +93,18 @@ RNNOISE_EXPORT void rnnoise_destroy(DenoiseState *st);
  * in and out must be at least rnnoise_get_frame_size() large.
  */
 RNNOISE_EXPORT float rnnoise_process_frame(DenoiseState *st, float *out, const float *in);
+
+/**
+ * Pre-processing of one frame
+ */
+RNNOISE_EXPORT int pre_process_frame(DenoiseState *st, const float *in, kiss_fft_cpx *X, kiss_fft_cpx *P,
+                                     float *Ex, float *Ep, float *Exp, float *features);
+
+/**
+ * Post-processing of one frame
+ */
+RNNOISE_EXPORT void post_process_frame(DenoiseState *st, float *gains, kiss_fft_cpx *X, kiss_fft_cpx *P,
+                                       float *Ex, float *Ep, float *Exp, float *out);
 
 /**
  * Load a model from a file
